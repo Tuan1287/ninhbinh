@@ -1,78 +1,44 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Du Lịch Ninh Bình</title>
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="./css/style.css">
-</head>
 <body>
 
-    <!-- HEADER -->
-    <header class="header">
-        <h1>🌄 AI Du Lịch Ninh Bình</h1>
-        <p>Lên lịch trình thông minh - Cá nhân hóa theo bạn</p>
-    </header>
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">🌄</div>
+  <div>
+    <div class="title">AI Du Lịch Ninh Bình</div>
+    <div class="subtitle">Lên lịch trình thông minh - cá nhân hóa theo bạn</div>
+  </div>
+</div>
 
-    <!-- MAIN -->
-    <main class="container">
+<!-- MAIN -->
+<div class="container">
 
-        <!-- API KEY -->
-        <section class="api-section">
-            <h3>🔑 Nhập API Gemini</h3>
-            <input 
-                type="password" 
-                id="apiKeyInput" 
-                placeholder="Dán API Gemini của bạn vào đây..."
-            >
-            <button id="saveApiKey">Lưu API</button>
-        </section>
-
-        <!-- CHAT -->
-        <section class="chat-section">
-
-            <div id="chatBox" class="chat-box">
-                <div class="bot-message">
-                    Xin chào 👋 Tôi có thể giúp bạn lên lịch trình du lịch Ninh Bình!
-                </div>
-            </div>
-
-            <div class="chat-input">
-                <input 
-                    type="text" 
-                    id="userInput" 
-                    placeholder="Ví dụ: Tôi muốn đi Ninh Bình 2 ngày 1 đêm..."
-                >
-                <button id="sendBtn">Gửi</button>
-            </div>
-
-        </section>
-
-        <!-- RESULT -->
-        <section class="result-section">
-            <h3>📍 Gợi ý lịch trình</h3>
-            <div id="resultBox">
-                <!-- AI render ở đây -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- LOADING -->
-    <div id="loading" class="loading hidden">
-        Đang xử lý...
+  <!-- API -->
+  <div class="card">
+    <h3>🔑 Kết nối AI</h3>
+    <div class="input-group">
+      <input id="apiKey" placeholder="Dán API Gemini của bạn..." />
+      <button onclick="saveApi()">Lưu</button>
     </div>
+  </div>
 
-    <!-- SCRIPTS -->
-    <script src="./data/khudiem.js"></script>
-    <script src="./data/luutru.js"></script>
-    <script src="./data/nhahang.js"></script>
+  <!-- INPUT -->
+  <div class="card">
+    <h3>💬 Bạn muốn đi như thế nào?</h3>
+    <div class="input-group">
+      <input id="userInput" placeholder="VD: 2 ngày 1 đêm, chill, ít đi bộ..." />
+      <button onclick="send()">Tạo lịch trình</button>
+    </div>
+  </div>
 
-    <script src="./js/utils.js"></script>
-    <script src="./js/ai.js"></script>
-    <script src="./js/app.js"></script>
+  <!-- RESULT -->
+  <div class="card">
+    <h3>📍 Gợi ý lịch trình</h3>
+    <div id="result" class="result loading">
+      Hãy nhập yêu cầu để AI tạo lịch trình cho bạn...
+    </div>
+  </div>
 
+</div>
+
+<script src="app.js"></script>
 </body>
-</html>
