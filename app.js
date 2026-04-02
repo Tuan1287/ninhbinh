@@ -1,5 +1,5 @@
 // =======================
-// IMPORT DATA
+// IMPORT
 // =======================
 import { khudiem } from "./data/khudiem.js";
 import { luutrus } from "./data/luutrus.js";
@@ -8,7 +8,7 @@ import { askAI } from "./ai.js";
 
 
 // =======================
-// DOM ELEMENTS
+// DOM
 // =======================
 const chatBox = document.getElementById("chat-box");
 const input = document.getElementById("user-input");
@@ -18,14 +18,12 @@ const sendBtn = document.getElementById("send-btn");
 // =======================
 // STATE
 // =======================
-let conversationHistory = [];
+let history = [];
 
 
 // =======================
-// UTIL FUNCTIONS
+// UI FUNCTIONS
 // =======================
-
-// Hiển thị message ra UI
 function addMessage(role, content) {
     const div = document.createElement("div");
     div.className = `message ${role}`;
@@ -34,48 +32,87 @@ function addMessage(role, content) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Tìm dữ liệu liên quan theo keyword
-function searchLocalData(query) {
-    query = query.toLowerCase();
 
-    const results = {
-        khudiem: khudiem.filter(item =>
-            item.name.toLowerCase().includes(query)
-        ),
-        luutru: luutrus.filter(item =>
-            item.name.toLowerCase().includes(query)
-        ),
-        nhahang: nhahang.filter(item =>
-            item.name.toLowerCase().includes(query)
-        )
-    };
+// =======================
+// INTENT DETECTION
+// =======================
+function detectIntent(text) {
+    const t = text.toLowerCase();
 
-    return results;
+    if (t.includes("ăn") || t.includes("nhà hàng") || t.includes("quán")) {
+        return "nhahang";
+    }
+
+    if (t.includes("ở") || t.includes("khách sạn") || t.includes("homestay")) {
+        return "luutru";
+    }
+
+    if (t.includes("đi") || t.includes("chơi") || t.includes("du lịch")) {
+        return "khudiem";
+    }
+
+    return "all";
 }
 
 
-// Format dữ liệu để đưa vào AI
-function buildContext(results) {
-    let context = "Dữ liệu gợi ý:\n";
+// =======================
+// SEARCH LOCAL DATA
+// =======================
+function searchData(query, intent) {
+    const q = query.toLowerCase();
 
-    if (results.khudiem.length > 0) {
-        context += "\nKhu điểm:\n";
-        results.khudiem.forEach(item => {
-            context += `- ${item.name}: ${item.description}\n`;
+    const filterFunc = (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q);
+
+    let result = {
+        khudiem: [],
+        luutru: [],
+        nhahang: []
+    };
+
+    if (intent === "khudiem" || intent === "all") {
+        result.khudiem = khudiem.filter(filterFunc);
+    }
+
+    if (intent === "luutru" || intent === "all") {
+        result.luutru = luutrus.filter(filterFunc);
+    }
+
+    if (intent === "nhahang" || intent === "all") {
+        result.nhahang = nhahang.filter(filterFunc);
+    }
+
+    return result;
+}
+
+
+// =======================
+// BUILD CONTEXT CHO AI
+// =======================
+function buildContext(data) {
+    let context = "Dữ liệu nội bộ Ninh Bình:\n";
+
+    const limit = 5; // tránh quá dài
+
+    if (data.khudiem.length > 0) {
+        context += "\n[ĐIỂM DU LỊCH]\n";
+        data.khudiem.slice(0, limit).forEach(i => {
+            context += `- ${i.name}: ${i.description}\n`;
         });
     }
 
-    if (results.luutru.length > 0) {
-        context += "\nLưu trú:\n";
-        results.luutru.forEach(item => {
-            context += `- ${item.name}: ${item.description}\n`;
+    if (data.luutru.length > 0) {
+        context += "\n[LƯU TRÚ]\n";
+        data.luutru.slice(0, limit).forEach(i => {
+            context += `- ${i.name}: ${i.description}\n`;
         });
     }
 
-    if (results.nhahang.length > 0) {
-        context += "\nNhà hàng:\n";
-        results.nhahang.forEach(item => {
-            context += `- ${item.name}: ${item.description}\n`;
+    if (data.nhahang.length > 0) {
+        context += "\n[ĂN UỐNG]\n";
+        data.nhahang.slice(0, limit).forEach(i => {
+            context += `- ${i.name}: ${i.description}\n`;
         });
     }
 
@@ -84,53 +121,63 @@ function buildContext(results) {
 
 
 // =======================
-// CORE CHAT LOGIC
+// BUILD PROMPT
 // =======================
-async function handleUserMessage() {
-    const userText = input.value.trim();
-    if (!userText) return;
-
-    addMessage("user", userText);
-    input.value = "";
-
-    // 1. Tìm dữ liệu local
-    const localResults = searchLocalData(userText);
-
-    // 2. Build context cho AI
-    const context = buildContext(localResults);
-
-    // 3. Gộp với lịch sử hội thoại
-    conversationHistory.push({
-        role: "user",
-        content: userText
-    });
-
-    const prompt = `
+function buildPrompt(userText, context) {
+    return `
 Bạn là AI du lịch Ninh Bình.
 
-Người dùng hỏi: "${userText}"
+Nhiệm vụ:
+- Tư vấn thực tế, cụ thể, dễ hiểu
+- Ưu tiên địa điểm trong dữ liệu nội bộ
+- Nếu phù hợp, gợi ý lịch trình
+
+Câu hỏi:
+"${userText}"
 
 ${context}
 
-Hãy tư vấn chi tiết, ưu tiên các địa điểm trong dữ liệu trên.
-    `;
+Yêu cầu:
+- Trả lời có cấu trúc rõ ràng
+- Nếu có nhiều lựa chọn, liệt kê bullet
+- Không nói lan man
+`;
+}
+
+
+// =======================
+// CORE LOGIC
+// =======================
+async function handleSend() {
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage("user", text);
+    input.value = "";
+
+    // 1. Intent
+    const intent = detectIntent(text);
+
+    // 2. Search local data
+    const localData = searchData(text, intent);
+
+    // 3. Build context
+    const context = buildContext(localData);
+
+    // 4. Prompt
+    const prompt = buildPrompt(text, context);
 
     try {
-        // 4. Gọi AI (Gemini)
-        const aiResponse = await askAI(prompt);
+        const reply = await askAI(prompt);
 
-        // 5. Lưu lịch sử
-        conversationHistory.push({
-            role: "assistant",
-            content: aiResponse
-        });
+        history.push({ role: "user", content: text });
+        history.push({ role: "assistant", content: reply });
 
-        // 6. Hiển thị
-        addMessage("assistant", aiResponse);
+        addMessage("assistant", reply);
 
-    } catch (error) {
-        console.error(error);
-        addMessage("assistant", "Có lỗi xảy ra, vui lòng thử lại!");
+    } catch (err) {
+        console.error(err);
+        addMessage("assistant", "Lỗi AI. Kiểm tra lại API Gemini.");
     }
 }
 
@@ -138,11 +185,11 @@ Hãy tư vấn chi tiết, ưu tiên các địa điểm trong dữ liệu trên
 // =======================
 // EVENTS
 // =======================
-sendBtn.addEventListener("click", handleUserMessage);
+sendBtn.addEventListener("click", handleSend);
 
-input.addEventListener("keypress", function (e) {
+input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-        handleUserMessage();
+        handleSend();
     }
 });
 
@@ -150,4 +197,11 @@ input.addEventListener("keypress", function (e) {
 // =======================
 // INIT
 // =======================
-addMessage("assistant", "Xin chào! Tôi là AI du lịch Ninh Bình. Bạn muốn đi đâu?");
+function init() {
+    addMessage(
+        "assistant",
+        "Chào bạn 👋 Tôi là AI du lịch Ninh Bình.\nBạn muốn đi đâu, ăn gì hay ở đâu?"
+    );
+}
+
+init();
